@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTP Authentication</title>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-auth-compat.js"></script>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyARk_NDGXAfs4nD_Yq9iSy31OJVYlSaJaM",
+            authDomain: "navbus-ca32a.firebaseapp.com",
+            projectId: "navbus-ca32a",
+            storageBucket: "navbus-ca32a.appspot.com",
+            messagingSenderId: "95089521134",
+            appId: "1:95089521134:web:3926acf2f42553db791eff",
+            measurementId: "G-M28GMH43ZW"
+        };
+
+        // ✅ Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+    </script>
+</head>
+<body>
+
+    <input type="text" id="phone" placeholder="Enter Phone Number (+91XXXXXXXXXX)">
+    <button onclick="sendOTP()">Send OTP</button>
+    
+    <div id="recaptcha-container"></div> <!-- Required for Firebase OTP -->
+
+    <input type="text" id="otp" placeholder="Enter OTP">
+    <button onclick="verifyOTP()">Verify OTP</button>
+
+    <script>
+        let recaptchaVerifier;
+        window.onload = function () {
+    if (!window.recaptchaVerifier) { // ✅ Ensure reCAPTCHA is initialized only once
+        window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+            'size': 'invisible'
+        });
+    }
+};
+
+        function sendOTP() {
+            let phoneNumber = document.getElementById("phone").value;
+
+            // Ensure phone number format is correct
+            if (!phoneNumber.startsWith("+")) {
+                alert("Please enter phone number with country code (e.g., +91XXXXXXXXXX)");
+                return;
+            }
+
+            // Initialize reCAPTCHA inside sendOTP()
+            recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' });
+            recaptchaVerifier.render();
+
+            firebase.auth().signInWithPhoneNumber(phoneNumber, recaptchaVerifier)
+                .then(confirmationResult => {
+                    window.confirmationResult = confirmationResult;
+                    alert("OTP Sent Successfully!");
+                })
+                .catch(error => {
+                    console.error("OTP Sending Error:", error);
+                    alert("Failed to send OTP. Check console for details.");
+                });
+        }
+
+        function verifyOTP() {
+            let otpCode = document.getElementById("otp").value;
+
+            if (!otpCode) {
+                alert("Please enter the OTP.");
+                return;
+            }
+
+            window.confirmationResult.confirm(otpCode)
+                .then(result => {
+                    result.user.getIdToken().then(token => {
+                        fetch("/verify_otp", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ phone: result.user.phoneNumber, otp: token })
+                        })
+                        .then(res => res.ok ? window.location.href = "/profile" : alert("OTP Verification Failed"));
+                    });
+                })
+                .catch(error => {
+                    console.error("OTP Verification Error:", error);
+                    alert("Invalid OTP. Please try again.");
+                });
+        }
+    </script>
+
+</body>
+</html>
